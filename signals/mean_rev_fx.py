@@ -2,23 +2,28 @@ import pandas as pd
 
 def mean_reversion(series: pd.Series, lookback: int = 24, z: float = 2.0):
     """
-    Mean-reversion signal: +1 if oversold (z-score < -z),
-    –1 if overbought (z-score > z), else 0.
-    Returns zero for any series shorter than lookback+1.
+    Mean-reversion signal:
+      +1 if the latest z-score < -z (oversold),
+      -1 if the latest z-score > z (overbought),
+      else 0.
+    Returns zero if series is too short or z-score can't be computed.
     """
-    # 1) Enough data?
-    if len(series) <= lookback:
+    # Ensure series is long enough for lookback
+    if series.dropna().shape[0] <= lookback:
         return {series.name: 0.0}
 
-    # 2) Compute rolling statistics
-    m = series.rolling(window=lookback).mean()
-    s = series.rolling(window=lookback).std()
-    zscore = (series - m) / s
+    # Compute rolling mean and std
+    rolling_mean = series.rolling(window=lookback, min_periods=lookback).mean()
+    rolling_std = series.rolling(window=lookback, min_periods=lookback).std()
+    zscore = (series - rolling_mean) / rolling_std
 
-    # 3) Safely grab the latest z-score
-    last_z = zscore.dropna().iloc[-1] if not zscore.dropna().empty else 0.0
+    # Drop NaNs and get last z-score safely
+    valid_z = zscore.dropna()
+    if valid_z.empty:
+        return {series.name: 0.0}
+    last_z = valid_z.iloc[-1]
 
-    # 4) Generate signal
+    # Determine signal
     if last_z < -z:
         val = 1.0
     elif last_z > z:
