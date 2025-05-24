@@ -50,7 +50,7 @@ cov = returns.cov()
 quantum_signals = quantum_portfolio(returns, cov, risk)
 
 mean_rev_signals = {}
-for _, series in df_close.iteritems():
+for _, series in df_close.items():
     mean_rev_signals.update(mean_reversion(series))
 
 momentum_signals = {}
