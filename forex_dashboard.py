@@ -7,19 +7,20 @@ from signals.mean_rev_fx import mean_reversion
 from signals.momentum_fx import momentum
 from aggregator import aggregate
 
+# --- Streamlit UI ---
 st.title("🌐 Quantum-Inspired FX Optimizer")
-risk = st.slider("Risk Tolerance", 0.0, 1.0, 0.8)
+risk = st.slider("Risk Tolerance", min_value=0.0, max_value=1.0, value=0.8)
 
-# Define your FX universe (input list)
-input_pairs = [
-    "EUR_USD","USD_JPY","GBP_USD","USD_CHF",
-    "AUD_USD","NZD_USD","USD_CAD","EUR_GBP",
-    "EUR_JPY","GBP_JPY"
+# --- Define your FX universe ---
+pairs_list = [
+    "EUR_USD", "USD_JPY", "GBP_USD", "USD_CHF",
+    "AUD_USD", "NZD_USD", "USD_CAD", "EUR_GBP",
+    "EUR_JPY", "GBP_JPY"
 ]
 
-# Fetch historical FX data into dict
+# --- Fetch historical data ---
 dfs = {}
-for p in input_pairs:
+for p in pairs_list:
     try:
         df = fetch_ohlcv(p)
         if "close" in df.columns:
@@ -30,10 +31,10 @@ for p in input_pairs:
         st.warning(f"Error fetching {p}: {e}")
 
 if not dfs:
-    st.error("No data fetched. Check your data source and symbols.")
+    st.error("Unable to fetch data for any pair. Check your data source and symbols.")
     st.stop()
 
-# Build DataFrame of closing prices, aligned
+# --- Build closing price DataFrame ---
 df_close = pd.concat(
     [df["close"].rename(p) for p, df in dfs.items()],
     axis=1
@@ -42,20 +43,30 @@ df_close = pd.concat(
 # Use only successfully fetched pairs
 pairs = df_close.columns.tolist()
 
-# Compute returns and covariance
+# --- Compute returns and covariance ---
 returns = df_close.pct_change().dropna()
 cov = returns.cov()
 
-# Generate signals
+# --- Generate signals ---
+
+# 1) Quantum-inspired portfolio
 quantum_signals = quantum_portfolio(returns, cov, risk)
 
+# 2) Mean-reversion signals
 mean_rev_signals = {}
 for _, series in df_close.items():
-    mean_rev_signals.update(mean_reversion(series))
+    try:
+        mean_rev_signals.update(mean_reversion(series))
+    except Exception:
+        mean_rev_signals[series.name] = 0.0
 
+# 3) Momentum signals
 momentum_signals = {}
-for _, series in df_close.iteritems():
-    momentum_signals.update(momentum(series))
+for _, series in df_close.items():
+    try:
+        momentum_signals.update(momentum(series))
+    except Exception:
+        momentum_signals[series.name] = 0.0
 
 signals = {
     "quantum": quantum_signals,
@@ -63,12 +74,14 @@ signals = {
     "momentum": momentum_signals
 }
 
-# Aggregate into final allocations
+# --- Aggregate into final allocations ---
 alloc = aggregate(signals)
 
-# Display results
-st.markdown("### Portfolio Allocations")
+# --- Display allocations ---
 if alloc:
-    st.table(pd.DataFrame([{"Pair": k, "Weight": v} for k, v in alloc.items()]))
+    st.markdown("### Portfolio Allocations")
+    st.table(pd.DataFrame([
+        {"Pair": k, "Weight": f"{v:.2%}"} for k, v in alloc.items()
+    ]))
 else:
-    st.warning("No allocations to display. Adjust risk tolerance or check data.")
+    st.warning("No allocations to display. Try adjusting the risk slider or check data availability.")
