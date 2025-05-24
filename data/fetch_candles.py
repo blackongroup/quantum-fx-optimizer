@@ -1,21 +1,14 @@
-import os
-import oandapyV20, pandas as pd
-from oandapyV20.endpoints.instruments import InstrumentsCandles
+import pandas as pd
+import yfinance as yf
 
-OANDA_TOKEN = os.getenv("OANDA_TOKEN")
-CLIENT = oandapyV20.API(access_token=OANDA_TOKEN)
+def fetch_ohlcv(pair="EUR_USD", period="60d", interval="1d"):
+    """
+    Fetches recent FX rates from Yahoo Finance for ticker like 'EURUSD=X'.
+    Returns a DataFrame with a 'close' column indexed by date.
+    """
+    # Yahoo tickers use e.g. 'EURUSD=X' for EUR/USD
+    yf_ticker = pair.replace("/", "") + "=X"
+    df = yf.download(yf_ticker, period=period, interval=interval)
+    df = df.rename(columns={"Close": "close"})
+    return df[["close"]]
 
-def fetch_ohlcv(pair="EUR_USD", granularity="H1", count=500):
-    params = {"granularity": granularity, "count": count}
-    req = InstrumentsCandles(instrument=pair, params=params)
-    resp = CLIENT.request(req)
-    data = resp["candles"]
-    df = pd.DataFrame([{
-        "time": c["time"],
-        "open": float(c["mid"]["o"]),
-        "high": float(c["mid"]["h"]),
-        "low":  float(c["mid"]["l"]),
-        "close":float(c["mid"]["c"])
-    } for c in data if c["complete"]])
-    df["time"] = pd.to_datetime(df["time"])
-    return df.set_index("time")
