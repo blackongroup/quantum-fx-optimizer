@@ -1,5 +1,3 @@
-# signals/momentum_fx.py
-
 def momentum(series, lookback=24):
     """
     Momentum signal: percentage change over lookback period.
