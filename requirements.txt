@@ -1,0 +1,7 @@
+pandas
+numpy
+streamlit
+ccxt
+dimod
+oandapyV20
+python-telegram-bot
