@@ -5,3 +5,4 @@ ccxt
 dimod
 oandapyV20
 python-telegram-bot
+yfinance
